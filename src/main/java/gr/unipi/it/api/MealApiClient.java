@@ -11,44 +11,55 @@ import com.google.gson.reflect.TypeToken;
 import gr.unipi.it.models.Recipe;
 
 public class MealApiClient {
-    private static final String BASE_URL = "https://www.themealdb.com/api/json/v1/1/";
+    // Η κεντρική διεύθυνση του API για τις συνταγές
+    private static final String API_ENDPOINT = "https://www.themealdb.com/api/json/v1/1/";
 
-    // Λειτουργία 1: Αναζήτηση με βάση το υλικό
-    public List<Recipe> searchByIngredient(String ingredient) throws Exception {
-        // Χρησιμοποιούμε trim() για να αφαιρέσουμε τυχόν κενά που μπερδεύουν το API
-        String urlString = BASE_URL + "filter.php?i=" + ingredient.trim();
-        return makeRequest(urlString);
+    // Μέθοδος για αναζήτηση συνταγών με βάση το κύριο υλικό
+    public List<Recipe> searchByIngredient(String mainIngredient) throws Exception {
+        // Καθαρίζουμε το κείμενο από κενά στην αρχή και στο τέλος
+        String cleanIngredient = mainIngredient.trim();
+        String finalUrl = API_ENDPOINT + "filter.php?i=" + cleanIngredient;
+        return executeApiCall(finalUrl);
     }
 
-    // Λειτουργία 2: Λήψη Λεπτομερειών βάσει ID
-    public Recipe getRecipeDetails(String id) throws Exception {
-        String urlString = BASE_URL + "lookup.php?i=" + id;
-        List<Recipe> meals = makeRequest(urlString);
-        return (meals != null && !meals.isEmpty()) ? meals.get(0) : null;
+    // Μέθοδος για ανάκτηση όλων των λεπτομερειών μιας συνταγής μέσω του ID της
+    public Recipe getRecipeDetails(String recipeId) throws Exception {
+        String finalUrl = API_ENDPOINT + "lookup.php?i=" + recipeId;
+        List<Recipe> recipeList = executeApiCall(finalUrl);
+        // Επιστρέφουμε την πρώτη συνταγή αν υπάρχει, αλλιώς null
+        return (recipeList != null && !recipeList.isEmpty()) ? recipeList.get(0) : null;
     }
 
-    // Λειτουργία 3: Πρόταση για τυχαία συνταγή
+    // Μέθοδος που προτείνει μια τυχαία συνταγή στον χρήστη
     public Recipe getRandomRecipe() throws Exception {
-        String urlString = BASE_URL + "random.php";
-        List<Recipe> meals = makeRequest(urlString);
-        return (meals != null && !meals.isEmpty()) ? meals.get(0) : null;
+        String finalUrl = API_ENDPOINT + "random.php";
+        List<Recipe> recipeList = executeApiCall(finalUrl);
+        return (recipeList != null && !recipeList.isEmpty()) ? recipeList.get(0) : null;
     }
 
-    // Βοηθητική μέθοδος για την επικοινωνία και την αποσειριοποίηση JSON
-    private List<Recipe> makeRequest(String urlString) throws Exception {
-        URL url = URI.create(urlString).toURL();
-        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-        conn.setRequestMethod("GET");
+    // Βοηθητική μέθοδος που κάνει την πραγματική κλήση στο ίντερνετ
+    private List<Recipe> executeApiCall(String targetUrl) throws Exception {
+        URL url = URI.create(targetUrl).toURL();
+        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        
+        // Ορίζουμε Timeouts (5 δευτερόλεπτα) για να μην "παγώνει" η εφαρμογή
+        connection.setConnectTimeout(5000);
+        connection.setReadTimeout(5000);
+        connection.setRequestMethod("GET");
 
-        try (InputStreamReader reader = new InputStreamReader(conn.getInputStream())) {
-            JsonObject jsonResponse = new Gson().fromJson(reader, JsonObject.class);
-            if (jsonResponse == null || jsonResponse.get("meals") == null || jsonResponse.get("meals").isJsonNull()) {
+        // Χρησιμοποιούμε try-with-resources για αυτόματο κλείσιμο του reader
+        try (InputStreamReader apiReader = new InputStreamReader(connection.getInputStream())) {
+            Gson parser = new Gson();
+            JsonObject rootObject = parser.fromJson(apiReader, JsonObject.class);
+            
+            // Έλεγχος αν η απάντηση είναι κενή ή αν δεν υπάρχουν γεύματα
+            if (rootObject == null || rootObject.get("meals") == null || rootObject.get("meals").isJsonNull()) {
                 return null;
             }
-            return new Gson().fromJson(jsonResponse.get("meals"), 
+            
+            // Μετατροπή του JSON array "meals" σε λίστα αντικειμένων Recipe
+            return parser.fromJson(rootObject.get("meals"), 
                     new TypeToken<List<Recipe>>(){}.getType());
         }
     }
 }
-
-
