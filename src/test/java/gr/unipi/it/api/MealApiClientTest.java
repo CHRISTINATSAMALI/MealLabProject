@@ -7,38 +7,50 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import gr.unipi.it.models.Recipe;
 
+/**
+ * Κλάση ελέγχου για την ορθότητα των κλήσεων στο Meal API.
+ * Υλοποιήθηκε στο πλαίσιο της εργασίας για τη διασφάλιση της ποιότητας των δεδομένων.
+ */
 public class MealApiClientTest {
 
-    // 1. Έλεγχος κανονικής λειτουργίας (Αυτό που είχες ήδη)
+    // 1. Έλεγχος ότι η αναζήτηση επιστρέφει αποτελέσματα για υπαρκτά υλικά
     @Test
-    public void testSearchByIngredient() throws Exception {
-        MealApiClient client = new MealApiClient();
-        // Ελέγχουμε αν το API επιστρέφει όντως λίστα για το chicken
-        List<Recipe> results = client.searchByIngredient("chicken");
+    public void shouldReturnRecipesForValidIngredient() throws Exception {
+        MealApiClient apiHandler = new MealApiClient();
         
-        assertNotNull(results, "Το API δεν πρέπει να επιστρέφει null");
-        assertFalse(results.isEmpty(), "Η λίστα συνταγών δεν πρέπει να είναι άδεια");
-        assertNotNull(results.get(0).getName(), "Η συνταγή πρέπει να έχει όνομα");
+        // Δοκιμάζουμε την αναζήτηση με "chicken"
+        List<Recipe> searchData = apiHandler.searchByIngredient("chicken");
+        
+        // Επιβεβαίωση ότι τα δεδομένα ήρθαν σωστά
+        assertNotNull(searchData, "Σφάλμα: Η λίστα αποτελεσμάτων είναι null.");
+        assertFalse(searchData.isEmpty(), "Σφάλμα: Δεν βρέθηκαν συνταγές για το υλικό 'chicken'.");
+        
+        // Έλεγχος ότι το πρώτο στοιχείο έχει έγκυρο τίτλο
+        String firstRecipeTitle = searchData.get(0).getName();
+        assertNotNull(firstRecipeTitle, "Σφάλμα: Η συνταγή δεν περιέχει όνομα.");
     }
 
-    // 2. Έλεγχος για υλικό που δεν υπάρχει (Negative Test)
+    // 2. Έλεγχος συμπεριφοράς του συστήματος σε λανθασμένο υλικό
     @Test
-    public void testSearchWithInvalidIngredient() throws Exception {
-        MealApiClient client = new MealApiClient();
-        // Δίνουμε ένα υλικό που δεν υπάρχει (τυχαία γράμματα)
-        List<Recipe> results = client.searchByIngredient("xyz123abc");
+    public void verifyNullResponseForUnknownIngredient() throws Exception {
+        MealApiClient apiHandler = new MealApiClient();
         
-        // Το API επιστρέφει null αν δεν βρει τίποτα, οπότε το ελέγχουμε
-        assertNull(results, "Για μη έγκυρο υλικό, το API πρέπει να επιστρέφει null");
+        // Χρήση τυχαίου κειμένου που δεν αντιστοιχεί σε υλικό
+        List<Recipe> emptyResults = apiHandler.searchByIngredient("nonExistentIngredient123");
+        
+        // Το API πρέπει να επιστρέφει null όταν δεν υπάρχει αντιστοιχία
+        assertNull(emptyResults, "Το API θα έπρεπε να επιστρέψει null για άγνωστο υλικό.");
     }
 
-    // 3. Έλεγχος για ID που δεν υπάρχει (Negative Test)
+    // 3. Έλεγχος ασφαλείας για λανθασμένο κωδικό συνταγής (ID)
     @Test
-    public void testGetRecipeDetailsInvalidId() throws Exception {
-        MealApiClient client = new MealApiClient();
-        // Δίνουμε ένα ID που είναι απίθανο να υπάρχει
-        Recipe result = client.getRecipeDetails("999999");
+    public void checkSystemRobustnessWithInvalidRecipeId() throws Exception {
+        MealApiClient apiHandler = new MealApiClient();
         
-        assertNull(result, "Για μη υπαρκτό ID, η συνταγή πρέπει να είναι null");
+        // Δοκιμή με ένα προφανώς λανθασμένο ID
+        Recipe mockResult = apiHandler.getRecipeDetails("000000");
+        
+        // Επιβεβαίωση ότι το σύστημα δεν "κρασάρει" αλλά επιστρέφει null
+        assertNull(mockResult, "Η αναζήτηση με λάθος ID πρέπει να επιστρέφει null.");
     }
 }
